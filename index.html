@@ -30,6 +30,7 @@
     flex:0 0 42%;background:var(--ink);
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:2.2vmin;position:relative;cursor:pointer;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
     padding-left:env(safe-area-inset-left);
   }
   .sign{
@@ -39,6 +40,9 @@
     transition:opacity .2s;
   }
   .sign.estimate{border-style:dashed;opacity:.82}
+  .sign.flash{animation:flash .26s ease}
+  @keyframes flash{0%{transform:scale(1)}45%{transform:scale(.9);opacity:.45}100%{transform:scale(1)}}
+  @media (prefers-reduced-motion:reduce){.sign.flash{animation:none}}
   .sign.none{background:#161A20;border-color:#3A434F}
   .sign-num{
     color:#0A0C0F;font-weight:800;line-height:.86;
@@ -380,13 +384,38 @@ document.addEventListener("visibilitychange",()=>{
 
 /* ---------------- interactions ---------------- */
 const STEPS=[null,30,40,50,60,70,80,90,100,110,120,130];
-$("limitPanel").addEventListener("click",()=>{
+const limitPanel=$("limitPanel");
+let pressTimer=null, longFired=false;
+
+function toAuto(){
+  if(S.manual==null) return;
+  S.manual=null; S.limit=null; S.source=null;
+  sign.classList.add("flash");
+  setTimeout(()=>sign.classList.remove("flash"),260);
+  render();
+}
+function cycle(){
   const i=STEPS.indexOf(S.manual);
   S.manual=STEPS[(i+1)%STEPS.length];
   render();
+}
+
+limitPanel.addEventListener("pointerdown",()=>{
+  longFired=false;
+  clearTimeout(pressTimer);
+  pressTimer=setTimeout(()=>{ longFired=true; toAuto(); },550);
 });
-$("limitPanel").addEventListener("keydown",e=>{
-  if(e.key==="Enter"||e.key===" "){ e.preventDefault(); $("limitPanel").click(); }
+["pointerup","pointercancel","pointerleave"].forEach(ev=>
+  limitPanel.addEventListener(ev,()=>clearTimeout(pressTimer)));
+limitPanel.addEventListener("contextmenu",e=>e.preventDefault());
+
+limitPanel.addEventListener("click",()=>{
+  if(longFired){ longFired=false; return; }
+  cycle();
+});
+limitPanel.addEventListener("keydown",e=>{
+  if(e.key==="Enter"||e.key===" "){ e.preventDefault(); cycle(); }
+  if(e.key==="Escape"){ e.preventDefault(); toAuto(); }
 });
 
 $("btnDemo").addEventListener("click",e=>{
