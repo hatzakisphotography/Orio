@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0A0C0F">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Όριο</title>
+<style>
+  :root{
+    --ink:#0A0C0F;
+    --sign-red:#D42E12;
+    --ok:#0E7A38;
+    --warn:#D96A06;
+    --over:#B81C1C;
+    --unknown:#2C3540;
+    --hair:rgba(255,255,255,.14);
+    --panel:var(--unknown);
+    font-family:"Roboto Condensed","Roboto Flex",Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:var(--ink);color:#fff;
+    font-variant-numeric:tabular-nums;overscroll-behavior:none}
+
+  #app{display:flex;height:100dvh;width:100vw}
+
+  /* ---------- left: the sign ---------- */
+  .limit{
+    flex:0 0 42%;background:var(--ink);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2.2vmin;position:relative;cursor:pointer;
+    padding-left:env(safe-area-inset-left);
+  }
+  .sign{
+    width:min(58vmin,74%);aspect-ratio:1;border-radius:50%;
+    background:#fff;display:grid;place-items:center;
+    border:clamp(9px,4.2vmin,40px) solid var(--sign-red);
+    transition:opacity .2s;
+  }
+  .sign.estimate{border-style:dashed;opacity:.82}
+  .sign.none{background:#161A20;border-color:#3A434F}
+  .sign-num{
+    color:#0A0C0F;font-weight:800;line-height:.86;
+    font-size:min(30vmin,38%);letter-spacing:-.035em;
+    padding-bottom:.04em;
+  }
+  .sign.none .sign-num{color:#5A6675;font-size:min(22vmin,30%)}
+  .limit-label{
+    font-size:clamp(10px,2.1vmin,17px);letter-spacing:.22em;text-transform:uppercase;
+    color:#7C8899;font-weight:600;
+  }
+
+  /* ---------- right: your speed ---------- */
+  .speed{
+    flex:1;background:var(--panel);transition:background-color .28s ease;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    position:relative;padding-right:env(safe-area-inset-right);
+  }
+  .speed.alert{animation:breathe 1.15s ease-in-out infinite}
+  @keyframes breathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.3)}}
+  @media (prefers-reduced-motion:reduce){.speed.alert{animation:none}}
+
+  .speed-num{
+    font-weight:800;line-height:.82;letter-spacing:-.045em;
+    font-size:min(46vmin,44vw);
+  }
+  .speed-unit{
+    font-size:clamp(11px,2.4vmin,20px);letter-spacing:.28em;text-transform:uppercase;
+    color:rgba(255,255,255,.72);font-weight:600;margin-top:1.6vmin;
+  }
+  .delta{
+    position:absolute;top:5%;right:6%;
+    font-size:clamp(15px,4.6vmin,42px);font-weight:700;
+    color:rgba(255,255,255,.82);letter-spacing:-.01em;
+  }
+
+  /* peripheral threshold band — readable without focusing on it */
+  .band{
+    position:absolute;left:6%;right:6%;bottom:4.5%;height:clamp(5px,1.5vmin,13px);
+    background:rgba(0,0,0,.28);border-radius:99px;overflow:visible;
+  }
+  .band-fill{height:100%;width:0;background:rgba(255,255,255,.92);border-radius:99px;
+    transition:width .25s ease}
+  .band-mark{position:absolute;top:-40%;height:180%;width:2px;background:rgba(0,0,0,.55)}
+
+  /* ---------- status strip ---------- */
+  #status{
+    position:fixed;left:0;right:0;bottom:0;height:26px;
+    display:flex;align-items:center;gap:14px;
+    padding:0 max(10px,env(safe-area-inset-left)) 0 max(10px,env(safe-area-inset-right));
+    background:rgba(0,0,0,.45);backdrop-filter:blur(6px);
+    font-size:11px;letter-spacing:.05em;color:#9AA6B4;z-index:5;
+  }
+  #status b{color:#DDE4EC;font-weight:600}
+  #status .spacer{flex:1}
+  #status button{
+    background:none;border:1px solid var(--hair);color:#9AA6B4;
+    font:inherit;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    padding:3px 9px;border-radius:3px;
+  }
+  #status button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  #status button.on{color:#0A0C0F;background:#DDE4EC;border-color:#DDE4EC}
+
+  /* ---------- start screen ---------- */
+  #start{
+    position:fixed;inset:0;background:var(--ink);z-index:20;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:26px;padding:28px;text-align:center;
+  }
+  #start h1{font-size:clamp(30px,7vmin,58px);font-weight:800;letter-spacing:-.03em}
+  #start p{max-width:44ch;color:#8B97A6;font-size:clamp(13px,2.1vmin,16px);line-height:1.55}
+  #go{
+    background:#fff;color:#0A0C0F;border:0;border-radius:5px;
+    font:inherit;font-weight:800;font-size:clamp(16px,3vmin,22px);
+    letter-spacing:.12em;text-transform:uppercase;padding:16px 44px;
+  }
+  #err{color:#E8836B;font-size:13px;min-height:1.2em;max-width:44ch;line-height:1.5}
+  .hint{color:#5D6875;font-size:11.5px;letter-spacing:.04em}
+</style>
+</head>
+<body>
+
+<div id="app" hidden>
+  <div class="limit" id="limitPanel" role="button" tabindex="0"
+       aria-label="Όριο ταχύτητας. Πάτησε για χειροκίνητη ρύθμιση.">
+    <div class="sign none" id="sign"><div class="sign-num" id="limitNum">—</div></div>
+    <div class="limit-label" id="limitLabel">αναμονή</div>
+  </div>
+
+  <div class="speed" id="speedPanel">
+    <div class="delta" id="delta"></div>
+    <div class="speed-num" id="speedNum">0</div>
+    <div class="speed-unit">km/h</div>
+    <div class="band" id="band" hidden>
+      <div class="band-fill" id="bandFill"></div>
+      <div class="band-mark" id="markLimit"></div>
+      <div class="band-mark" id="markPlus"></div>
+    </div>
+  </div>
+</div>
+
+<div id="status" hidden>
+  <span>Όριο: <b id="stSource">—</b></span>
+  <span>GPS: <b id="stGps">—</b></span>
+  <span class="spacer"></span>
+  <button id="btnDemo" type="button">Δοκιμή</button>
+  <button id="btnFs" type="button">Πλήρης οθόνη</button>
+</div>
+
+<div id="start">
+  <h1>Όριο</h1>
+  <p>Δείχνει το όριο του δρόμου δίπλα στην ταχύτητά σου, σε μέγεθος που διαβάζεται με μια ματιά.
+     Χρειάζεται πρόσβαση στην τοποθεσία. Τα όρια έρχονται από το OpenStreetMap.</p>
+  <button id="go" type="button">Έναρξη</button>
+  <div id="err"></div>
+  <div class="hint">Ρύθμισε τη φωτεινότητα ψηλά και στήριξε το κινητό πριν ξεκινήσεις.</div>
+</div>
+
+<script>
+"use strict";
+
+/* ---------------- config ---------------- */
+const WARN_MARGIN = 15;              // km/h πάνω από το όριο → πορτοκαλί
+const MIRRORS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.osm.ch/api/interpreter"
+];
+const HIGHWAY_ALL  = "motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link";
+const HIGHWAY_FAST = "motorway|trunk|primary|secondary|motorway_link|trunk_link|primary_link|secondary_link";
+
+// Προεπιλεγμένα όρια Ελλάδας όταν λείπει το tag maxspeed
+const DEFAULTS = {
+  motorway:130, motorway_link:80, trunk:110, trunk_link:70,
+  primary:90, secondary:90, tertiary:90,
+  unclassified:60, residential:50, living_street:20, service:20
+};
+const URBAN_CAP = 50;
+
+/* ---------------- state ---------------- */
+const S = {
+  speed:null, smooth:null, limit:null, source:null,
+  manual:null, acc:null, lastFix:0,
+  ways:[], center:null, radius:0, fetching:false, lastFetch:0, netFail:0,
+  prev:null, demo:false, demoV:0, demoDir:1
+};
+
+const $ = id => document.getElementById(id);
+const app=$("app"), sign=$("sign"), limitNum=$("limitNum"), limitLabel=$("limitLabel"),
+      speedPanel=$("speedPanel"), speedNum=$("speedNum"), deltaEl=$("delta"),
+      band=$("band"), bandFill=$("bandFill"), markLimit=$("markLimit"), markPlus=$("markPlus"),
+      stSource=$("stSource"), stGps=$("stGps");
+
+/* ---------------- geometry ---------------- */
+function metersBetween(a,b){
+  const dLat=(b.lat-a.lat)*110540;
+  const dLon=(b.lon-a.lon)*111320*Math.cos((a.lat+b.lat)/2*Math.PI/180);
+  return Math.hypot(dLat,dLon);
+}
+function pointSegDist(p,a,b,cosLat){
+  const px=(p.lon-a.lon)*cosLat*111320, py=(p.lat-a.lat)*110540;
+  const bx=(b.lon-a.lon)*cosLat*111320, by=(b.lat-a.lat)*110540;
+  const len2=bx*bx+by*by;
+  let t = len2>0 ? (px*bx+py*by)/len2 : 0;
+  t = t<0?0:t>1?1:t;
+  return Math.hypot(px-bx*t, py-by*t);
+}
+
+/* ---------------- maxspeed parsing ---------------- */
+function parseMaxspeed(v){
+  if(!v) return null;
+  v=String(v).trim().toLowerCase();
+  if(v==="walk") return 7;
+  if(v==="none"||v==="signals"||v==="variable") return null;
+  let m=v.match(/^(\d+(?:\.\d+)?)\s*(mph|km\/h|kmh|kph)?$/);
+  if(m){ const n=parseFloat(m[1]); return m[2]==="mph" ? Math.round(n*1.60934) : Math.round(n); }
+  m=v.match(/^[a-z]{2}:(urban|rural|motorway|trunk|living_street)$/);
+  if(m) return {urban:50,rural:90,motorway:130,trunk:110,living_street:20}[m[1]] ?? null;
+  return null;
+}
+
+/* ---------------- overpass ---------------- */
+async function fetchWays(lat,lon,fast){
+  const radius = fast?900:320;
+  const types  = fast?HIGHWAY_FAST:HIGHWAY_ALL;
+  const q = `[out:json][timeout:12];way(around:${radius},${lat.toFixed(5)},${lon.toFixed(5)})`+
+            `["highway"~"^(${types})$"];out tags geom;`;
+  const url = MIRRORS[S.netFail % MIRRORS.length];
+  const res = await fetch(url,{method:"POST",body:"data="+encodeURIComponent(q),
+    headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+  if(!res.ok) throw new Error("HTTP "+res.status);
+  const json = await res.json();
+  S.ways = (json.elements||[]).filter(e=>e.geometry && e.geometry.length>1);
+  S.center = {lat,lon};
+  S.radius = radius;
+}
+
+function maybeFetch(pos,kmh){
+  if(S.fetching) return;
+  const now=Date.now();
+  if(now-S.lastFetch < 4000) return;
+  const fast = kmh>70;
+  const trigger = fast?520:170;
+  if(S.center && metersBetween(S.center,pos) < trigger && S.radius===(fast?900:320)) return;
+  S.fetching=true; S.lastFetch=now;
+  fetchWays(pos.lat,pos.lon,fast)
+    .then(()=>{S.netFail=0;})
+    .catch(()=>{S.netFail++;})
+    .finally(()=>{S.fetching=false;});
+}
+
+/* ---------------- resolve limit ---------------- */
+function resolveLimit(pos){
+  if(S.manual!=null){ S.limit=S.manual; S.source="manual"; return; }
+  if(!S.ways.length){ S.limit=null; S.source=S.netFail?"net":null; return; }
+  if(S.center && metersBetween(S.center,pos) > S.radius*1.05){
+    S.limit=null; S.source="stale"; return;
+  }
+
+  const cosLat=Math.cos(pos.lat*Math.PI/180);
+  let best=null, bestD=Infinity;
+  let urbanCount=0;
+
+  for(const w of S.ways){
+    const g=w.geometry;
+    let d=Infinity;
+    for(let i=1;i<g.length;i++){
+      const dd=pointSegDist(pos,g[i-1],g[i],cosLat);
+      if(dd<d) d=dd;
+      if(d<1) break;
+    }
+    const hw=w.tags && w.tags.highway;
+    if(d<220 && (hw==="residential"||hw==="living_street")) urbanCount++;
+    if(d<bestD){ bestD=d; best=w; }
+  }
+
+  if(!best || bestD>60){ S.limit=null; S.source="offroad"; return; }
+
+  const t=best.tags||{};
+  const tagged = parseMaxspeed(t.maxspeed) ?? parseMaxspeed(t["maxspeed:forward"]);
+  if(tagged){ S.limit=tagged; S.source="osm"; return; }
+
+  let def = DEFAULTS[t.highway];
+  if(def==null){ S.limit=null; S.source="offroad"; return; }
+  const urban = urbanCount>=3 || t.lit==="yes" || t.sidewalk;
+  if(urban && def>URBAN_CAP) def=URBAN_CAP;
+  S.limit=def; S.source="guess";
+}
+
+/* ---------------- render ---------------- */
+const LABELS={osm:"OSM",guess:"εκτίμηση",manual:"χειροκίνητο",
+              net:"χωρίς σύνδεση",stale:"εκτός περιοχής",offroad:"άγνωστος δρόμος"};
+
+function render(){
+  if(S.manual!=null){ S.limit=S.manual; S.source="manual"; }
+  const v = S.smooth==null ? null : Math.round(S.smooth);
+  speedNum.textContent = v==null ? "–" : v;
+
+  if(S.limit!=null){
+    sign.classList.remove("none");
+    sign.classList.toggle("estimate", S.source==="guess");
+    limitNum.textContent=S.limit;
+  }else{
+    sign.classList.add("none"); sign.classList.remove("estimate");
+    limitNum.textContent="—";
+  }
+  limitLabel.textContent = S.source ? (LABELS[S.source]||"") : "αναμονή";
+
+  let bg="var(--unknown)", alert=false, dtxt="";
+  if(v!=null && S.limit!=null){
+    const d=v-S.limit;
+    if(d<=0) bg="var(--ok)";
+    else if(d<=WARN_MARGIN) bg="var(--warn)";
+    else { bg="var(--over)"; alert=true; }
+    dtxt = d>0 ? "+"+d : (d<0 ? String(d) : "");
+
+    band.hidden=false;
+    const scale=S.limit+40;
+    bandFill.style.width=Math.min(100,(v/scale)*100)+"%";
+    markLimit.style.left=(S.limit/scale)*100+"%";
+    markPlus.style.left=((S.limit+WARN_MARGIN)/scale)*100+"%";
+  }else{
+    band.hidden=true;
+  }
+  document.documentElement.style.setProperty("--panel",bg);
+  speedPanel.classList.toggle("alert",alert);
+  deltaEl.textContent=dtxt;
+
+  stSource.textContent = S.source ? (LABELS[S.source]||"—") : "—";
+  const age=(Date.now()-S.lastFix)/1000;
+  stGps.textContent = S.demo ? "δοκιμή"
+    : S.acc==null ? "—"
+    : (age>6 ? "χάθηκε" : "±"+Math.round(S.acc)+" m");
+}
+
+/* ---------------- position handling ---------------- */
+function onPosition(p){
+  const c=p.coords;
+  const pos={lat:c.latitude, lon:c.longitude};
+  S.acc=c.accuracy; S.lastFix=Date.now();
+
+  let ms = (c.speed!=null && !Number.isNaN(c.speed)) ? c.speed : null;
+  if(ms==null && S.prev){
+    const dt=(p.timestamp-S.prev.t)/1000;
+    if(dt>0.4 && dt<12) ms=metersBetween(S.prev.pos,pos)/dt;
+  }
+  S.prev={pos,t:p.timestamp};
+
+  if(ms!=null){
+    let kmh=ms*3.6;
+    if(kmh<4) kmh=0;
+    S.smooth = S.smooth==null ? kmh : S.smooth+0.55*(kmh-S.smooth);
+    S.speed=kmh;
+  }
+
+  if(!S.demo){
+    maybeFetch(pos, S.smooth||0);
+    resolveLimit(pos);
+    render();
+  }
+}
+
+function onGeoError(e){
+  const msg={1:"Δεν δόθηκε άδεια τοποθεσίας. Δώσ' την από τις ρυθμίσεις του browser.",
+             2:"Το σήμα GPS δεν είναι διαθέσιμο.",
+             3:"Λήξη χρόνου αναμονής για στίγμα."}[e.code] || "Σφάλμα τοποθεσίας.";
+  $("err").textContent=msg;
+  $("start").hidden=false;
+}
+
+/* ---------------- wake lock ---------------- */
+let wakeLock=null;
+async function keepAwake(){
+  try{ wakeLock = await navigator.wakeLock.request("screen"); }catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible" && !wakeLock) keepAwake();
+});
+
+/* ---------------- interactions ---------------- */
+const STEPS=[null,30,40,50,60,70,80,90,100,110,120,130];
+$("limitPanel").addEventListener("click",()=>{
+  const i=STEPS.indexOf(S.manual);
+  S.manual=STEPS[(i+1)%STEPS.length];
+  render();
+});
+$("limitPanel").addEventListener("keydown",e=>{
+  if(e.key==="Enter"||e.key===" "){ e.preventDefault(); $("limitPanel").click(); }
+});
+
+$("btnDemo").addEventListener("click",e=>{
+  S.demo=!S.demo;
+  e.target.classList.toggle("on",S.demo);
+  if(S.demo){
+    S.demoV=0; S.demoDir=1;
+    if(S.limit==null){ S.manual=50; }
+    S.demoTimer=setInterval(()=>{
+      S.demoV+=S.demoDir*1.6;
+      if(S.demoV>=(( S.limit||50)+35)) S.demoDir=-1;
+      if(S.demoV<=0) S.demoDir=1;
+      S.smooth=S.demoV; render();
+    },70);
+  }else{
+    clearInterval(S.demoTimer); S.smooth=S.speed; render();
+  }
+});
+
+$("btnFs").addEventListener("click",()=>{
+  if(document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(()=>{});
+});
+
+/* ---------------- start ---------------- */
+$("go").addEventListener("click",async ()=>{
+  $("err").textContent="";
+  if(!navigator.geolocation){ $("err").textContent="Ο browser δεν υποστηρίζει γεωεντοπισμό."; return; }
+  try{ await document.documentElement.requestFullscreen(); }catch(e){}
+  keepAwake();
+  navigator.geolocation.watchPosition(onPosition,onGeoError,
+    {enableHighAccuracy:true, maximumAge:1000, timeout:20000});
+  $("start").hidden=true;
+  app.hidden=false; $("status").hidden=false;
+  render();
+  setInterval(render,1000);   // κρατά φρέσκια την ένδειξη GPS
+});
+
+// ελάχιστο manifest ώστε να μπαίνει στην αρχική οθόνη
+try{
+  const mf={name:"Όριο",short_name:"Όριο",display:"fullscreen",orientation:"any",
+            background_color:"#0A0C0F",theme_color:"#0A0C0F",start_url:"."};
+  const l=document.createElement("link");
+  l.rel="manifest";
+  l.href="data:application/manifest+json,"+encodeURIComponent(JSON.stringify(mf));
+  document.head.appendChild(l);
+}catch(e){}
+</script>
+</body>
+</html>
